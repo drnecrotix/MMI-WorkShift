@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.jpg" alt="MMI Schedule System" width="100%">
+  <img src="docs/banner.jpg" alt="MMI Schedule System" width="100%">
 </p>
 
 # MMI Schedule System
