@@ -165,4 +165,8 @@ GitHub Actions automatically runs database migrations and the test suite on ever
 
 ## License
 
-Unofficial internal project. All rights reserved.
+Copyright (c) 2025-2026 **Dr. Necrotix (NIKO)**  
+All rights reserved.
+
+This software was created and is owned by Dr. Necrotix (NIKO).  
+See the [LICENSE](LICENSE) file for full terms.
