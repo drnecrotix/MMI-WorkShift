@@ -4,42 +4,44 @@
 
 # MMI Schedule System
 
-**Информационна система за месечни работни графици** — служителите получават актуален график на телефона си чрез уеб приложение. Въвеждат вътрешен работен номер и виждат индивидуална информация за дневна/нощна смяна, отпуск, болничен и почивни дни.
+Web-based system for importing monthly work schedules from Excel and providing each employee with a personal calendar view.
 
-Неофициален проект за **Мини Марица Изток 2 (MMI)**.
+Employees log in with their internal work number and can view day/night shifts, leave, sick leave and rest days for any month.
 
----
-
-## ✨ Основни възможности
-
-- 📥 **Импорт от Excel** — разпознава реалния MMI2 формат с множество блокове в един лист
-- 📅 **Персонален календар** — responsive изглед с навигация между месеци и месечна статистика
-- 🔐 **Сигурен достъп** — вход чрез работен номер + JWT; admin роли с scrypt hashing
-- 🛠️ **First-run installer** — уеб wizard за SQLite/PostgreSQL, Alembic migrations и owner акаунт
-- 📱 **REST API** — готов за бъдещо Android native приложение
-- 🐳 **Docker** & **GitHub Actions CI** — лесен deployment и автоматични тестове
-- 🔄 **Atomic import** + история на импортите с SHA-256 отпечатък
-- ⚙️ **Self-update** и system diagnostics
+Unofficial project for **Mini Maritsa Iztok 2 (MMI)**.
 
 ---
 
-## 📋 Легенда на смените
+## Features
 
-| Excel код | Значение          | API тип       |
-|-----------|-------------------|---------------|
-| `1`       | Дневна смяна      | `day`         |
-| `2`       | Нощна смяна       | `night`       |
-| `О` / `0` | Отпуск            | `leave`       |
-| `Б`       | Болничен          | `sick_leave`  |
-| *(празно)*| Почивка по график | `rest`        |
-
-Всички други стойности се запазват като `unknown` (оригиналният код остава в `raw_code`).
+- **Excel import** — correctly parses the real MMI2 multi-block format
+- **Personal calendar** — responsive monthly view with statistics and month navigation
+- **Secure access** — work-number login + JWT; role-based admin panel (owner / admin / moderator) with scrypt password hashing
+- **First-run installer** — web wizard for SQLite or PostgreSQL, Alembic migrations and owner account creation
+- **REST API** — ready for a future native Android client
+- **Docker & CI** — Docker Compose support and GitHub Actions for migrations + tests
+- **Atomic imports** — schedule data and import history are written in a single transaction; SHA-256 fingerprint of every imported file
+- **Self-update & diagnostics** — built-in update checker and system health tools
 
 ---
 
-## 🚀 Бърз старт
+## Shift legend
 
-### Локално (manual setup)
+| Excel code | Meaning              | API type      |
+|------------|----------------------|---------------|
+| `1`        | Day shift            | `day`         |
+| `2`        | Night shift          | `night`       |
+| `О` / `0`  | Leave                | `leave`       |
+| `Б`        | Sick leave           | `sick_leave`  |
+| *(empty)*  | Scheduled rest day   | `rest`        |
+
+Any other value is stored as `unknown` (original code is preserved in `raw_code`).
+
+---
+
+## Quick start
+
+### Local development
 
 ```bash
 python -m venv .venv
@@ -59,10 +61,11 @@ python -m alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Отвори:
-- Приложение: http://127.0.0.1:8000
-- Admin: http://127.0.0.1:8000/admin
-- API docs: http://127.0.0.1:8000/docs
+Then open:
+
+- Application: http://localhost:8000
+- Admin panel: http://localhost:8000/admin
+- API docs (Swagger): http://localhost:8000/docs
 
 ### Docker
 
@@ -71,70 +74,72 @@ cp .env.example .env
 docker compose up --build
 ```
 
-### First-run installer
+### First-run web installer
 
-Ако няма завършена инсталация, приложението автоматично пренасочва към `/install`. Wizard-ът:
+If the application has not been installed yet, the first visit automatically redirects to `/install`.
 
-1. Проверява Python/Alembic и права за запис
-2. Позволява избор SQLite / PostgreSQL
-3. Тества връзката и изпълнява `alembic upgrade head`
-4. Създава единствения **owner** акаунт
-5. Генерира JWT secret и записва `.env`
-6. Заключва installer-а (`install/install.lock`)
+The installer wizard:
 
-> **Важно:** FTP само качва файловете. Нужен е Python ASGI runtime (Passenger, systemd, Docker и т.н.). При PostgreSQL базата трябва да съществува предварително.
+1. Checks Python / Alembic and write permissions
+2. Lets you choose SQLite or PostgreSQL
+3. Tests the database connection and runs `alembic upgrade head`
+4. Creates the single **owner** account
+5. Generates a random JWT secret and writes `.env`
+6. Locks the installer (`install/install.lock`)
 
-Повече: [`install/README.md`](install/README.md)
+> **Note on hosting:** Simply uploading files via FTP is not enough. The environment must be able to run a Python ASGI application (Passenger, systemd + uvicorn, Docker, etc.). When using PostgreSQL the database itself must already exist; the installer only creates the tables and indexes.
+
+More details: [`install/README.md`](install/README.md)
 
 ---
 
-## 🏗️ Архитектура
+## Architecture
 
 ```text
 Excel (.xlsx)
     │
     ├── period detector
-    ├── preview (без запис)
+    ├── preview (no write)
     └── confirm import
-            ├── Employee (work_number, full_name, team А/Б/В/Г)
+            ├── Employee   (work_number, full_name, team А/Б/В/Г)
             ├── ShiftEntry (date, type, raw_code)
             └── ImportHistory (filename, counts, SHA-256, conflicts)
 
 Employee data
     ├── Web calendar
-    └── REST API ──► Android app
+    └── REST API  ──►  Android app (future)
 ```
 
-**Стек:** FastAPI · SQLAlchemy · Alembic · OpenPyXL · JWT · scrypt
+**Stack:** FastAPI · SQLAlchemy · Alembic · OpenPyXL · JWT · scrypt
 
 ---
 
-## 👥 Роли в административния панел
+## Admin roles
 
-| Роля        | Права |
-|-------------|-------|
-| **owner**   | Пълен достъп. Единствен може да управлява admin/moderator акаунти. Не може да бъде понижен/деактивиран. |
-| **admin**   | Preview/import, ръчни корекции, employee metadata, import & audit history. Без account management. |
-| **moderator** | Preview/import, търсене на служители, редакция на дневни записи. Без metadata, history и account management. |
-
----
-
-## 📡 API (кратък преглед)
-
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| `POST` | `/api/v1/auth/login` | Вход с `{"work_number": "12345"}` |
-| `GET`  | `/api/v1/me` | Текущ служител (Bearer token) |
-| `GET`  | `/api/v1/me/schedule/{year}/{month}` | Месечен график |
-| `POST` | `/api/v1/admin/preview` | Preview на Excel (multipart) |
-| `POST` | `/api/v1/admin/import` | Потвърден импорт |
-| `GET`  | `/api/v1/admin/imports` | История на импортите |
-
-Пълна документация: Swagger UI на `/docs` и файловете в [`docs/`](docs/).
+| Role         | Permissions |
+|--------------|-------------|
+| **owner**    | Full access. Only the owner can manage admin/moderator accounts. The owner account cannot be demoted or deactivated through the supported UI/API. |
+| **admin**    | Preview & import, manual corrections, employee metadata, import history and audit history. No account management. |
+| **moderator**| Preview & import, employee search, editing of daily shift entries. Cannot change name or permanent team. No history or account management. |
 
 ---
 
-## 📂 Документация
+## API overview
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/auth/login` | Login with `{"work_number": "12345"}` |
+| `GET`  | `/api/v1/me` | Current employee (Bearer token) |
+| `GET`  | `/api/v1/me/schedule/{year}/{month}` | Monthly schedule |
+| `POST` | `/api/v1/admin/preview` | Excel preview (multipart) |
+| `POST` | `/api/v1/admin/import` | Confirmed import |
+| `GET`  | `/api/v1/admin/imports` | Import history |
+
+Full interactive documentation is available at `/docs`. Additional details can be found in the [`docs/`](docs/) folder.
+
+---
+
+## Documentation
 
 - [Admin accounts](docs/admin-accounts.md)
 - [Database migrations](docs/database-migrations.md)
@@ -148,22 +153,16 @@ Employee data
 
 ---
 
-## 🧪 Тестове & CI
+## Tests & CI
 
 ```bash
 pytest
 ```
 
-GitHub Actions автоматично изпълнява migrations и unit тестове при всеки push.
+GitHub Actions automatically runs database migrations and the test suite on every push.
 
 ---
 
-## 📄 Лиценз
+## License
 
-Неофициален вътрешен проект. Всички права запазени.
-
----
-
-<p align="center">
-  <sub>Изградено с ❤️ за работещите в MMI</sub>
-</p>
+Unofficial internal project. All rights reserved.
